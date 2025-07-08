@@ -11,7 +11,7 @@ const {
   USER_ROLES, 
   AUDIT_ACTIONS, 
   HTTP_STATUS 
-} = require('../../shared/types');
+} = require('../../../shared/types/index');
 
 // Verify JWT token
 const verifyToken = (token) => {

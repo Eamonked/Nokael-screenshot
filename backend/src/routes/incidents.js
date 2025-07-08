@@ -14,7 +14,7 @@ const {
   AUDIT_ACTIONS, 
   INCIDENT_STATUS,
   PAGINATION 
-} = require('../../shared/types');
+} = require('../../../shared/types/index');
 
 const router = express.Router();
 

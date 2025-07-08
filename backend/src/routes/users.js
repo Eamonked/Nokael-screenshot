@@ -15,7 +15,7 @@ const {
   AUDIT_ACTIONS, 
   USER_ROLES,
   PAGINATION 
-} = require('../../shared/types');
+} = require('../../../shared/types/index');
 
 const router = express.Router();
 

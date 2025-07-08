@@ -13,7 +13,7 @@ const {
 const { 
   HTTP_STATUS, 
   AUDIT_ACTIONS 
-} = require('../../shared/types');
+} = require('../../../shared/types/index');
 
 const router = express.Router();
 

@@ -15,7 +15,7 @@ const {
   HTTP_STATUS, 
   AUDIT_ACTIONS, 
   LICENSE_STATUS 
-} = require('../../shared/types');
+} = require('../../../shared/types/index');
 const crypto = require('crypto');
 
 const router = express.Router();

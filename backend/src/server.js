@@ -8,8 +8,8 @@ const path = require('path');
 require('dotenv').config();
 
 const logger = require('./utils/logger');
-const errorHandler = require('./middleware/errorHandler');
-const { HTTP_STATUS } = require('../../shared/types');
+const { errorHandler } = require('./middleware/errorHandler');
+const { HTTP_STATUS } = require('../../shared/types/index');
 
 // Import routes
 const authRoutes = require('./routes/auth');
@@ -67,7 +67,7 @@ app.use('/api/', limiter);
 const speedLimiter = slowDown({
   windowMs: 15 * 60 * 1000, // 15 minutes
   delayAfter: 50, // allow 50 requests per 15 minutes, then...
-  delayMs: parseInt(process.env.SLOW_DOWN_DELAY_MS) || 500 // begin adding 500ms of delay per request above 50
+  delayMs: () => parseInt(process.env.SLOW_DOWN_DELAY_MS) || 500 // begin adding 500ms of delay per request above 50
 });
 app.use('/api/', speedLimiter);
 
