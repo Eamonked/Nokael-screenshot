@@ -1,0 +1,160 @@
+version: '3.8'
+
+# Security Incident Reporting System - Hybrid Deployment
+# Single-tenant with sync capabilities and remote license validation
+
+services:
+  # PostgreSQL Database (Local with Sync)
+  postgres:
+    image: postgres:15-alpine
+    container_name: screenshot_postgres_hybrid
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_NAME:-screenshot_hybrid_db}
+      POSTGRES_USER: ${DB_USER:-screenshot_user}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-your_secure_password}
+      POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --lc-collate=C --lc-ctype=C"
+    volumes:
+      - postgres_data_hybrid:/var/lib/postgresql/data
+      - ./backup:/backup
+    ports:
+      - "5432:5432"
+    networks:
+      - screenshot_network_hybrid
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-screenshot_user} -d ${DB_NAME:-screenshot_hybrid_db}"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Backend API (Hybrid Mode)
+  backend:
+    build:
+      context: ../backend
+      dockerfile: Dockerfile
+      target: production
+    container_name: screenshot_backend_hybrid
+    restart: unless-stopped
+    env_file:
+      - ../backend/.env
+    environment:
+      # Hybrid-specific settings
+      DEPLOYMENT_MODE: hybrid
+      NODE_ENV: ${NODE_ENV:-production}
+      PORT: 3000
+      HOST: 0.0.0.0
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: ${DB_NAME:-screenshot_hybrid_db}
+      DB_USER: ${DB_USER:-screenshot_user}
+      DB_PASSWORD: ${DB_PASSWORD:-your_secure_password}
+      DB_SSL: false
+      JWT_SECRET: ${JWT_SECRET:-your_super_secret_jwt_key_change_in_production}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-2h}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-your_refresh_secret_key}
+      JWT_REFRESH_EXPIRES_IN: ${JWT_REFRESH_EXPIRES_IN:-7d}
+      UPLOAD_PATH: /app/uploads
+      MAX_FILE_SIZE: ${MAX_FILE_SIZE:-5242880}
+      ALLOWED_FILE_TYPES: ${ALLOWED_FILE_TYPES:-image/jpeg,image/png,image/gif}
+      BCRYPT_ROUNDS: ${BCRYPT_ROUNDS:-12}
+      RATE_LIMIT_WINDOW_MS: ${RATE_LIMIT_WINDOW_MS:-900000}
+      RATE_LIMIT_MAX_REQUESTS: ${RATE_LIMIT_MAX_REQUESTS:-100}
+      SLOW_DOWN_DELAY_MS: ${SLOW_DOWN_DELAY_MS:-500}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3001,http://localhost:3002}
+      CORS_CREDENTIALS: ${CORS_CREDENTIALS:-true}
+      # Hybrid-specific overrides
+      LICENSE_MODE: remote
+      TENANT_CONFIG: single
+      SYNC_ENABLED: true
+      OFFLINE_MODE: true
+      LICENSE_CHECK: true
+      # Sync configuration
+      SYNC_INTERVAL: ${SYNC_INTERVAL:-300000}
+      SYNC_BATCH_SIZE: ${SYNC_BATCH_SIZE:-50}
+      SYNC_RETRY_ATTEMPTS: ${SYNC_RETRY_ATTEMPTS:-3}
+      SYNC_MAX_QUEUE_SIZE: ${SYNC_MAX_QUEUE_SIZE:-1000}
+      REMOTE_API_URL: ${REMOTE_API_URL:-http://localhost:3000}
+      REMOTE_API_KEY: ${REMOTE_API_KEY:-test_remote_api_key}
+    volumes:
+      - backend_uploads_hybrid:/app/uploads
+      - backend_logs_hybrid:/app/logs
+      - backend_backups_hybrid:/app/backups
+      - backend_sync_queue:/app/sync_queue
+    ports:
+      - "3000:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - screenshot_network_hybrid
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000/health', (res) => { process.exit(res.statusCode === 200 ? 0 : 1) })"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Nginx Reverse Proxy (Hybrid)
+  nginx:
+    image: nginx:alpine
+    container_name: screenshot_nginx_hybrid
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/certs:/etc/nginx/certs:ro
+      - nginx_logs_hybrid:/var/log/nginx
+    depends_on:
+      - backend
+    networks:
+      - screenshot_network_hybrid
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Database backup service (Hybrid)
+  backup:
+    image: postgres:15-alpine
+    container_name: screenshot_backup_hybrid
+    restart: "no"
+    environment:
+      POSTGRES_DB: ${DB_NAME:-screenshot_hybrid_db}
+      POSTGRES_USER: ${DB_USER:-screenshot_user}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-your_secure_password}
+    volumes:
+      - ./backup:/backup
+      - postgres_data_hybrid:/var/lib/postgresql/data
+    networks:
+      - screenshot_network_hybrid
+    command: >
+      sh -c "
+        echo 'Starting hybrid database backup...' &&
+        pg_dump -h postgres -U ${DB_USER:-screenshot_user} -d ${DB_NAME:-screenshot_hybrid_db} > /backup/backup_hybrid_$$(date +%Y%m%d_%H%M%S).sql &&
+        echo 'Hybrid backup completed successfully' &&
+        find /backup -name 'backup_hybrid_*.sql' -mtime +${BACKUP_RETENTION_DAYS:-30} -delete
+      "
+
+volumes:
+  postgres_data_hybrid:
+    driver: local
+  backend_uploads_hybrid:
+    driver: local
+  backend_logs_hybrid:
+    driver: local
+  backend_backups_hybrid:
+    driver: local
+  backend_sync_queue:
+    driver: local
+  nginx_logs_hybrid:
+    driver: local
+
+networks:
+  screenshot_network_hybrid:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.22.0.0/16 
