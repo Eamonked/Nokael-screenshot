@@ -16,7 +16,8 @@
     "noEmit": true,
     "jsx": "react-jsx"
   },
-  "include": ["src"],
+  "include": ["src/main/**/*", "src/preload/**/*"],
+  "exclude": ["src/renderer/**/*"],
   "references": [
     { "path": "./tsconfig.main.json" },
     { "path": "./tsconfig.renderer.json" }
