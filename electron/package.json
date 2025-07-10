@@ -8,7 +8,9 @@
     "start": "concurrently \"npm run dev:main\" \"npm run dev:renderer\"",
     "dev:main": "tsc -p tsconfig.main.json && electron .",
     "dev:renderer": "vite",
-    "build": "npm run build:main && npm run build:renderer",
+    "build:preload": "tsc -p tsconfig.preload.json",
+    "copy:pill": "node -e \"const fs=require('fs');const path=require('path');const distDir='dist/renderer';if(!fs.existsSync(distDir))fs.mkdirSync(distDir,{recursive:true});['pill.html','capture-menu.html','region-overlay.html','incident-form.html'].forEach(file=>fs.copyFileSync(`src/renderer/${file}`,`${distDir}/${file}`))\"",
+    "build": "npm run build:main && npm run build:renderer && npm run build:preload && npm run copy:pill",
     "build:main": "tsc -p tsconfig.main.json",
     "build:renderer": "vite build",
     "dist": "npm run build && electron-builder",
@@ -48,6 +50,7 @@
     "@emotion/styled": "^11.11.0",
     "@mui/icons-material": "^5.14.0",
     "@mui/material": "^5.14.0",
+    "@types/sharp": "^0.31.1",
     "axios": "^1.6.0",
     "electron-store": "^8.1.0",
     "lodash": "^4.17.21",
@@ -61,6 +64,7 @@
     "react-router-dom": "^6.20.0",
     "robotjs": "^0.6.0",
     "screenshot-desktop": "^1.12.7",
+    "sharp": "^0.34.2",
     "uuid": "^9.0.1"
   },
   "build": {

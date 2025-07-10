@@ -20,6 +20,12 @@ interface AppSettings {
   uploadPath: string;
 }
 
+declare global {
+  interface Window {
+    electronAPI: any;
+  }
+}
+
 const App: React.FC = () => {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [currentView, setCurrentView] = useState<'dashboard' | 'settings' | 'history'>('dashboard');
@@ -31,7 +37,7 @@ const App: React.FC = () => {
 
     // Set up event listeners
     if (window.electronAPI) {
-      window.electronAPI.onScreenshotTaken((data) => {
+      window.electronAPI.onScreenshotTaken((data: any) => {
         toast.success(`Screenshot saved: ${data.filePath}`);
       });
 
@@ -63,7 +69,7 @@ const App: React.FC = () => {
   const handleTakeScreenshot = async () => {
     try {
       if (window.electronAPI) {
-        const result = await window.electronAPI.takeScreenshot();
+        const result = await window.electronAPI.takeScreenshot('full');
         if (result.success) {
           toast.success('Screenshot taken successfully!');
         } else {
@@ -89,6 +95,9 @@ const App: React.FC = () => {
     }
   };
 
+  const handleViewHistory = () => setCurrentView('history');
+  const handleOpenSettings = () => setCurrentView('settings');
+
   const menuItems = [
     { text: 'Dashboard', icon: <DashboardIcon />, view: 'dashboard' as const },
     { text: 'Take Screenshot', icon: <CameraIcon />, action: handleTakeScreenshot },
@@ -99,13 +108,13 @@ const App: React.FC = () => {
   const renderContent = () => {
     switch (currentView) {
       case 'dashboard':
-        return <Dashboard onTakeScreenshot={handleTakeScreenshot} />;
+        return <Dashboard onTakeScreenshot={handleTakeScreenshot} onViewHistory={handleViewHistory} onOpenSettings={handleOpenSettings} />;
       case 'settings':
         return <Settings settings={settings} onUpdate={handleSettingsUpdate} />;
       case 'history':
         return <ScreenshotHistory />;
       default:
-        return <Dashboard onTakeScreenshot={handleTakeScreenshot} />;
+        return <Dashboard onTakeScreenshot={handleTakeScreenshot} onViewHistory={handleViewHistory} onOpenSettings={handleOpenSettings} />;
     }
   };
 

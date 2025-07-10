@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { 
   Box, 
   Grid, 
@@ -21,9 +21,19 @@ import {
 
 interface DashboardProps {
   onTakeScreenshot: () => void;
+  onViewHistory: () => void;
+  onOpenSettings: () => void;
 }
 
-const Dashboard: React.FC<DashboardProps> = ({ onTakeScreenshot }) => {
+const Dashboard: React.FC<DashboardProps> = ({ onTakeScreenshot, onViewHistory, onOpenSettings }) => {
+  const [stats, setStats] = useState({ total: 0, size: 0, files: [] });
+
+  useEffect(() => {
+    if (window.electronAPI && window.electronAPI.getScreenshotStats) {
+      window.electronAPI.getScreenshotStats().then(setStats);
+    }
+  }, []);
+
   return (
     <Box>
       <Typography variant="h4" gutterBottom>
@@ -51,6 +61,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onTakeScreenshot }) => {
                   variant="outlined"
                   startIcon={<HistoryIcon />}
                   size="large"
+                  onClick={onViewHistory}
                 >
                   View History
                 </Button>
@@ -58,6 +69,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onTakeScreenshot }) => {
                   variant="outlined"
                   startIcon={<SettingsIcon />}
                   size="large"
+                  onClick={onOpenSettings}
                 >
                   Settings
                 </Button>
@@ -77,7 +89,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onTakeScreenshot }) => {
                 <Grid item xs={6}>
                   <Paper sx={{ p: 2, textAlign: 'center' }}>
                     <Typography variant="h4" color="primary">
-                      0
+                      {stats.total}
                     </Typography>
                     <Typography variant="body2" color="text.secondary">
                       Screenshots Today
@@ -87,10 +99,10 @@ const Dashboard: React.FC<DashboardProps> = ({ onTakeScreenshot }) => {
                 <Grid item xs={6}>
                   <Paper sx={{ p: 2, textAlign: 'center' }}>
                     <Typography variant="h4" color="secondary">
-                      0
+                      {(stats.size / 1024).toFixed(2)} KB
                     </Typography>
                     <Typography variant="body2" color="text.secondary">
-                      Total Screenshots
+                      Total Size
                     </Typography>
                   </Paper>
                 </Grid>

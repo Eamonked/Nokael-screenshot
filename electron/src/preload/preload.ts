@@ -4,7 +4,7 @@ import { contextBridge, ipcRenderer } from 'electron';
 // the ipcRenderer without exposing the entire object
 contextBridge.exposeInMainWorld('electronAPI', {
   // Screenshot functionality
-  takeScreenshot: () => ipcRenderer.invoke('take-screenshot'),
+  takeScreenshot: (captureType?: string, region?: { x: number; y: number; width: number; height: number }) => ipcRenderer.invoke('take-screenshot', captureType, region),
   
   // Settings management
   getSettings: () => ipcRenderer.invoke('get-settings'),
@@ -16,6 +16,20 @@ contextBridge.exposeInMainWorld('electronAPI', {
   
   // API communication
   apiRequest: (options: any) => ipcRenderer.invoke('api-request', options),
+  
+  // Pill window functionality
+  openDashboard: () => ipcRenderer.invoke('open-dashboard'),
+  startDrag: (startX: number, startY: number) => ipcRenderer.invoke('start-drag', startX, startY),
+  updateDrag: (currentX: number, currentY: number) => ipcRenderer.invoke('update-drag', currentX, currentY),
+  stopDrag: () => ipcRenderer.invoke('stop-drag'),
+  isDragging: () => ipcRenderer.invoke('is-dragging'),
+  getScreenshotStats: () => ipcRenderer.invoke('get-screenshot-stats'),
+  updateScreenshotMetadata: (file: string, data: any) => ipcRenderer.invoke('update-screenshot-metadata', { file, data }),
+  openCaptureMenu: () => ipcRenderer.invoke('open-capture-menu'),
+  openRegionOverlay: () => ipcRenderer.invoke('open-region-overlay'),
+  sendRegionSelected: (region: { x: number; y: number; width: number; height: number }) => ipcRenderer.send('region-selected', region),
+  getSystemInfo: () => ipcRenderer.invoke('get-system-info'),
+  saveIncidentMetadata: (metadata: any) => ipcRenderer.invoke('save-incident-metadata', metadata),
   
   // Event listeners
   onScreenshotTaken: (callback: (data: any) => void) => {
@@ -36,12 +50,24 @@ contextBridge.exposeInMainWorld('electronAPI', {
 declare global {
   interface Window {
     electronAPI: {
-      takeScreenshot: () => Promise<{ success: boolean; filePath?: string; error?: string }>;
+      takeScreenshot: (captureType?: string, region?: { x: number; y: number; width: number; height: number }) => Promise<{ success: boolean; filePath?: string; error?: string }>;
       getSettings: () => Promise<any>;
       updateSettings: (settings: any) => Promise<any>;
       selectFolder: () => Promise<string | undefined>;
       saveScreenshot: (imageData: string) => Promise<{ success: boolean; filePath?: string; error?: string }>;
       apiRequest: (options: any) => Promise<any>;
+      openDashboard: () => Promise<void>;
+      startDrag: (startX: number, startY: number) => Promise<void>;
+      updateDrag: (currentX: number, currentY: number) => Promise<void>;
+      stopDrag: () => Promise<void>;
+      isDragging: () => Promise<boolean>;
+      getScreenshotStats: () => Promise<any>;
+      updateScreenshotMetadata: (file: string, data: any) => Promise<any>;
+      openCaptureMenu: () => Promise<void>;
+      openRegionOverlay: () => Promise<void>;
+      sendRegionSelected: (region: { x: number; y: number; width: number; height: number }) => void;
+      getSystemInfo: () => Promise<{ username: string; platform: string; arch: string }>;
+      saveIncidentMetadata: (metadata: any) => Promise<{ success: boolean; incidentId?: string; error?: string }>;
       onScreenshotTaken: (callback: (data: any) => void) => void;
       onOpenSettings: (callback: () => void) => void;
       removeAllListeners: (channel: string) => void;

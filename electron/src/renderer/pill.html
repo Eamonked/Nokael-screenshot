@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Screenshot Security</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: transparent;
+            overflow: hidden;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            -webkit-user-select: none;
+            user-select: none;
+            -webkit-app-region: no-drag;
+        }
+
+        #pill {
+            width: 300px;
+            height: 80px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            border: none;
+            outline: none;
+            transition: all 0.2s ease;
+            -webkit-app-region: drag;
+            position: relative;
+        }
+
+        #pill:hover {
+            transform: scale(1.05);
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+        }
+
+        #pill:active {
+            transform: scale(0.95);
+        }
+
+        #pill::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            border-radius: 40px;
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.05) 100%);
+            pointer-events: none;
+        }
+
+        #pill-content {
+            -webkit-app-region: no-drag;
+            pointer-events: auto;
+            width: 100%;
+            text-align: center;
+            z-index: 1;
+        }
+    </style>
+</head>
+<body>
+    <div id="pill">
+        <div id="pill-content">Screenshot Security</div>
+    </div>
+    <div id="capture-menu-root"></div>
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const pill = document.getElementById('pill');
+      const pillContent = document.getElementById('pill-content');
+      const captureMenuRoot = document.getElementById('capture-menu-root');
+      let captureMenuInstance = null;
+
+      pillContent.addEventListener('dblclick', () => {
+        window.electronAPI.openCaptureMenu();
+      });
+      pill.addEventListener('mousedown', (e) => {
+        if (e.button === 0) {
+          window.electronAPI.startDrag(e.clientX, e.clientY);
+        }
+      });
+      pill.addEventListener('contextmenu', (e) => {
+        e.preventDefault();
+      });
+      document.addEventListener('mousemove', (e) => {
+        window.electronAPI.isDragging().then(isDragging => {
+          if (isDragging) {
+            window.electronAPI.updateDrag(e.clientX, e.clientY);
+          }
+        });
+      });
+      document.addEventListener('mouseup', () => {
+        window.electronAPI.isDragging().then(isDragging => {
+          if (isDragging) {
+            window.electronAPI.stopDrag();
+          }
+        });
+      });
+    });
+    </script>
+</body>
+</html> 

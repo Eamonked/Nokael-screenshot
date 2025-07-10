@@ -1,0 +1,46 @@
+.capture-menu-modal {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: #fff;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.15);
+  padding: 32px;
+  z-index: 1000;
+  min-width: 320px;
+}
+.capture-menu-title {
+  font-weight: 700;
+  font-size: 22px;
+  margin-bottom: 24px;
+  text-align: center;
+}
+.capture-menu-options {
+  margin-bottom: 24px;
+}
+.capture-menu-options label {
+  display: block;
+  margin-bottom: 12px;
+}
+.capture-menu-actions {
+  text-align: center;
+}
+.capture-menu-capture-btn {
+  font-size: 18px;
+  padding: 8px 32px;
+  border-radius: 6px;
+  border: 1px solid #888;
+  background: #eee;
+  cursor: pointer;
+}
+.capture-menu-cancel-btn {
+  margin-left: 16px;
+  font-size: 16px;
+  padding: 6px 18px;
+  border-radius: 6px;
+  border: 1px solid #ccc;
+  background: #fff;
+  cursor: pointer;
+} 

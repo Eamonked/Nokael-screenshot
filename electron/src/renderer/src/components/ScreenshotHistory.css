@@ -1,0 +1,17 @@
+.screenshot-history-container {
+  padding: 24px;
+}
+.screenshot-history-list-item {
+  margin-bottom: 16px;
+}
+.screenshot-history-fields input {
+  margin-right: 8px;
+}
+.screenshot-history-edit-btn {
+  margin-left: 8px;
+}
+.screenshot-history-fields {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+} 
