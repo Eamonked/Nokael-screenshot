@@ -6,8 +6,9 @@
   "scripts": {
     "start": "node src/server.js",
     "dev": "nodemon src/server.js",
-    "migrate": "node src/database/migrate.js",
-    "seed": "node src/database/seed.js",
+    "migrate": "node src/database/migrate.js migrate",
+    "seed": "node src/database/migrate.js seed",
+    "reset": "node src/database/migrate.js reset",
     "test": "jest",
     "lint": "eslint src/",
     "lint:fix": "eslint src/ --fix"

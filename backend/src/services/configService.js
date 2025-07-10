@@ -4,7 +4,7 @@ const {
   TENANT_CONFIG, 
   DEFAULT_CONFIG,
   CONFIG_VALIDATION 
-} = require('../../../shared/types/index');
+} = require('../../shared/types/index');
 
 class ConfigService {
   constructor() {

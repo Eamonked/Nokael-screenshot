@@ -90,6 +90,66 @@
       // Set current timestamp
       timestampInput.value = new Date().toLocaleString();
 
+      // Add screenshot gallery and add button below the form
+      const galleryDiv = document.createElement('div');
+      galleryDiv.id = 'screenshot-gallery';
+      galleryDiv.style.margin = '24px 0';
+      galleryDiv.innerHTML = '<div style="font-weight:500;margin-bottom:8px;">Screenshots for this Incident:</div>';
+      modal.appendChild(galleryDiv);
+
+      const addScreenshotBtn = document.createElement('button');
+      addScreenshotBtn.textContent = 'Add Screenshot to This Incident';
+      addScreenshotBtn.style.display = 'block';
+      addScreenshotBtn.style.margin = '0 auto 16px auto';
+      addScreenshotBtn.style.padding = '8px 18px';
+      addScreenshotBtn.style.background = '#1976d2';
+      addScreenshotBtn.style.color = '#fff';
+      addScreenshotBtn.style.border = 'none';
+      addScreenshotBtn.style.borderRadius = '4px';
+      addScreenshotBtn.style.fontSize = '15px';
+      addScreenshotBtn.style.cursor = 'pointer';
+      modal.appendChild(addScreenshotBtn);
+
+      // Helper to load and display screenshots for this incident
+      async function loadScreenshots(incidentId) {
+        if (!incidentId) return;
+        const result = await window.electronAPI.getScreenshotsForIncident(incidentId);
+        galleryDiv.innerHTML = '<div style="font-weight:500;margin-bottom:8px;">Screenshots for this Incident:</div>';
+        if (result.success && result.data && result.data.length > 0) {
+          result.data.forEach(s => {
+            const imgDiv = document.createElement('div');
+            imgDiv.style.marginBottom = '8px';
+            imgDiv.innerHTML = `<span style='font-size:13px;color:#333;'>${s.fileName}</span> <span style='color:#888;font-size:12px;'>(${new Date(s.createdAt).toLocaleString()})</span>`;
+            galleryDiv.appendChild(imgDiv);
+          });
+        } else {
+          galleryDiv.innerHTML += '<div style="color:#888;font-size:13px;">No screenshots yet.</div>';
+        }
+      }
+
+      // Add screenshot logic
+      addScreenshotBtn.onclick = async () => {
+        // Hide the incident form before opening capture menu
+        await window.electronAPI.hideIncidentForm?.();
+        // Open capture menu, then attach screenshot to this incident
+        window.electronAPI.takeScreenshot('full').then(async (result) => {
+          if (result.success && result.filePath) {
+            // Attach screenshot to this incident
+            const incidentId = window.currentIncidentId;
+            const fileName = result.filePath.split(/[\\/]/).pop();
+            await window.electronAPI.addScreenshotToIncident(incidentId, fileName, result.filePath);
+            await loadScreenshots(incidentId);
+            alert('Screenshot added to this incident!');
+          }
+        });
+      };
+
+      // After saving incident, set window.currentIncidentId and load screenshots
+      window.setIncidentId = (incidentId) => {
+        window.currentIncidentId = incidentId;
+        loadScreenshots(incidentId);
+      };
+
       // Keyboard handlers
       modal.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') {

@@ -10,7 +10,7 @@ const {
 const { 
   HTTP_STATUS, 
   PAGINATION 
-} = require('../../../shared/types/index');
+} = require('../../shared/types/index');
 
 const router = express.Router();
 
@@ -134,7 +134,7 @@ router.get('/stats/overview', authenticate, adminOnly, asyncHandler(async (req, 
 // GET /api/audit/actions - Get list of available audit actions (admin only)
 router.get('/actions/list', authenticate, adminOnly, asyncHandler(async (req, res) => {
   // Return all available audit actions from shared types
-  const { AUDIT_ACTIONS } = require('../../../shared/types/index');
+  const { AUDIT_ACTIONS } = require('../../shared/types/index');
   
   const actions = Object.entries(AUDIT_ACTIONS).map(([key, value]) => ({
     key,

@@ -7,6 +7,7 @@ import screenshot from 'screenshot-desktop';
 import sharp from 'sharp';
 import { v4 as uuidv4 } from 'uuid';
 import Store from 'electron-store';
+import { SQLiteService, LocalIncident } from './sqliteService';
 
 // Initialize electron store for settings
 const store = new Store();
@@ -31,10 +32,13 @@ class ScreenshotApp {
   private captureMenuWindow: BrowserWindow | null = null;
   private regionOverlayWindow: BrowserWindow | null = null;
   private incidentFormWindow: BrowserWindow | null = null;
+  private sqliteService: SQLiteService | null = null;
+  private modalOpen: boolean = false;
 
   constructor() {
     this.settings = this.loadSettings();
     this.setupApp();
+    this.setupMenuBar(); // Add this line to set up the menu bar
   }
 
   private loadSettings(): AppSettings {
@@ -59,7 +63,10 @@ class ScreenshotApp {
   }
 
   private setupApp(): void {
-    app.whenReady().then(() => {
+    app.whenReady().then(async () => {
+      // Initialize SQLite service
+      await this.initializeSQLiteService();
+      
       if (!this.settings.pillPosition) {
         this.pillPosition = this.getDefaultPillPosition();
       } else {
@@ -90,6 +97,27 @@ class ScreenshotApp {
     });
   }
 
+  private async initializeSQLiteService(): Promise<void> {
+    try {
+      this.sqliteService = new SQLiteService(this.settings.uploadPath);
+      
+      // Migrate existing JSON metadata to SQLite
+      const metadataPath = path.join(this.settings.uploadPath, 'metadata.json');
+      if (fs.existsSync(metadataPath)) {
+        console.log('Migrating existing JSON metadata to SQLite...');
+        const migratedCount = await this.sqliteService.migrateFromJSON(metadataPath);
+        console.log(`Migrated ${migratedCount} incidents to SQLite`);
+        
+        // Backup the old metadata file
+        const backupPath = path.join(this.settings.uploadPath, 'metadata.json.backup');
+        fs.copyFileSync(metadataPath, backupPath);
+        console.log('Backed up original metadata to metadata.json.backup');
+      }
+    } catch (error) {
+      console.error('Error initializing SQLite service:', error);
+    }
+  }
+
   private createPillWindow(): void {
     const { x, y } = this.pillPosition!;
     
@@ -114,7 +142,10 @@ class ScreenshotApp {
     this.pillWindow.loadFile(path.join(__dirname, '../renderer/pill.html'));
 
     this.pillWindow.once('ready-to-show', () => {
-      this.pillWindow?.show();
+      // Only show pill if main window is not visible
+      if (!this.mainWindow || this.mainWindow.isDestroyed() || !this.mainWindow.isVisible()) {
+        this.pillWindow?.show();
+      }
       this.pillWindow?.webContents.openDevTools({ mode: 'detach' });
     });
 
@@ -182,6 +213,13 @@ class ScreenshotApp {
 
     this.mainWindow.on('closed', () => {
       this.mainWindow = null;
+      // Show pill when main window is closed
+      this.showPill();
+    });
+
+    this.mainWindow.on('hide', () => {
+      // Show pill when main window is hidden
+      this.showPill();
     });
   }
 
@@ -248,12 +286,14 @@ class ScreenshotApp {
       },
       show: false
     });
+    this.modalOpen = true;
     this.captureMenuWindow.loadFile(path.join(__dirname, '../renderer/capture-menu.html'));
     this.captureMenuWindow.once('ready-to-show', () => {
       this.captureMenuWindow?.show();
     });
     this.captureMenuWindow.on('closed', () => {
       this.captureMenuWindow = null;
+      this.modalOpen = false;
     });
   }
 
@@ -312,6 +352,7 @@ class ScreenshotApp {
       },
       show: false
     });
+    this.modalOpen = true;
     this.incidentFormWindow.loadFile(path.join(__dirname, '../renderer/incident-form.html'));
     this.incidentFormWindow.once('ready-to-show', () => {
       this.incidentFormWindow?.show();
@@ -322,6 +363,7 @@ class ScreenshotApp {
     });
     this.incidentFormWindow.on('closed', () => {
       this.incidentFormWindow = null;
+      this.modalOpen = false;
     });
   }
 
@@ -413,6 +455,26 @@ class ScreenshotApp {
       await this.takeScreenshot('region', region);
     });
 
+    ipcMain.handle('capture-menu-dismissed', () => {
+      // Do not show pill when capture menu is dismissed; modalOpen will be false, pill will only show if dashboard is closed and no modal is open
+    });
+
+    ipcMain.handle('show-pill', () => {
+      this.showPill();
+    });
+
+    ipcMain.handle('hide-pill-and-open-capture-menu', () => {
+      this.hidePill();
+      this.createCaptureMenuWindow();
+    });
+
+    ipcMain.handle('hide-incident-form', () => {
+      if (this.incidentFormWindow && !this.incidentFormWindow.isDestroyed()) {
+        this.incidentFormWindow.hide();
+        this.modalOpen = false;
+      }
+    });
+
     const getMetadataPath = (uploadPath: string) => path.join(uploadPath, 'metadata.json');
 
     function readMetadata(uploadPath: string) {
@@ -462,25 +524,114 @@ class ScreenshotApp {
 
     ipcMain.handle('save-incident-metadata', async (event, metadata) => {
       try {
-        const uploadPath = store.get('uploadPath', path.join(app.getPath('pictures'), 'Screenshots')) as string;
-        const existingMetadata = readMetadata(uploadPath);
-        
-        // Extract filename from imagePath
-        const imageFileName = path.basename(metadata.imagePath);
-        
-        // Save incident metadata
-        existingMetadata[imageFileName] = {
-          ...existingMetadata[imageFileName],
-          ...metadata,
-          incidentId: uuidv4(),
-          createdAt: new Date().toISOString()
-        };
-        
-        writeMetadata(uploadPath, existingMetadata);
-        
-        return { success: true, incidentId: existingMetadata[imageFileName].incidentId };
+        // Use SQLite if available, fallback to JSON
+        if (this.sqliteService) {
+          const imageFileName = path.basename(metadata.imagePath);
+          const incidentData = {
+            imageFileName,
+            imagePath: metadata.imagePath,
+            remarks: metadata.remarks || '',
+            incident: metadata.incident || '',
+            area: metadata.area || '',
+            operator: metadata.operator || '',
+            timestamp: new Date().toISOString()
+          };
+          
+          const incidentId = await this.sqliteService.addIncident(incidentData);
+          // Notify renderer of new incidentId if form is open
+          if (this.incidentFormWindow && !this.incidentFormWindow.isDestroyed()) {
+            this.incidentFormWindow.webContents.executeJavaScript(`window.setIncidentId && window.setIncidentId('${incidentId}')`);
+          }
+          return { success: true, incidentId };
+        } else {
+          // Fallback to JSON metadata
+          const uploadPath = store.get('uploadPath', path.join(app.getPath('pictures'), 'Screenshots')) as string;
+          const existingMetadata = readMetadata(uploadPath);
+          
+          // Extract filename from imagePath
+          const imageFileName = path.basename(metadata.imagePath);
+          
+          // Save incident metadata
+          existingMetadata[imageFileName] = {
+            ...existingMetadata[imageFileName],
+            ...metadata,
+            incidentId: uuidv4(),
+            createdAt: new Date().toISOString()
+          };
+          // Notify renderer of new incidentId if form is open
+          if (this.incidentFormWindow && !this.incidentFormWindow.isDestroyed()) {
+            this.incidentFormWindow.webContents.executeJavaScript(`window.setIncidentId && window.setIncidentId('${existingMetadata[imageFileName].incidentId}')`);
+          }
+          
+          writeMetadata(uploadPath, existingMetadata);
+          
+          return { success: true, incidentId: existingMetadata[imageFileName].incidentId };
+        }
       } catch (error) {
         console.error('Save incident metadata error:', error);
+        return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+      }
+    });
+
+    // New SQLite-specific IPC handlers
+    ipcMain.handle('get-local-incidents', async (event, options = {}) => {
+      try {
+        if (this.sqliteService) {
+          const incidents = await this.sqliteService.getIncidents(options);
+          return { success: true, data: incidents };
+        } else {
+          return { success: false, error: 'SQLite service not available' };
+        }
+      } catch (error) {
+        console.error('Get local incidents error:', error);
+        return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+      }
+    });
+
+    ipcMain.handle('get-sync-stats', async () => {
+      try {
+        if (this.sqliteService) {
+          const stats = await this.sqliteService.getSyncStats();
+          return { success: true, data: stats };
+        } else {
+          return { success: false, error: 'SQLite service not available' };
+        }
+      } catch (error) {
+        console.error('Get sync stats error:', error);
+        return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+      }
+    });
+
+    ipcMain.handle('search-local-incidents', async (event, searchTerm: string) => {
+      try {
+        if (this.sqliteService) {
+          const incidents = await this.sqliteService.getIncidents({ search: searchTerm });
+          return { success: true, data: incidents };
+        } else {
+          return { success: false, error: 'SQLite service not available' };
+        }
+      } catch (error) {
+        console.error('Search local incidents error:', error);
+        return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+      }
+    });
+
+    ipcMain.handle('add-screenshot-to-incident', async (event, { incidentId, fileName, filePath }) => {
+      if (!this.sqliteService) return { success: false, error: 'SQLite not initialized' };
+      try {
+        const id = await this.sqliteService.addScreenshot(incidentId, fileName, filePath);
+        return { success: true, id };
+      } catch (error) {
+        return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+      }
+    });
+
+    ipcMain.handle('get-screenshots-for-incident', async (event, incidentId) => {
+      if (!this.sqliteService) return { success: false, error: 'SQLite not initialized' };
+      try {
+        const screenshots = await this.sqliteService.getScreenshotsForIncident(incidentId);
+        return { success: true, data: screenshots };
+      } catch (error) {
         return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
       }
     });
@@ -525,6 +676,34 @@ class ScreenshotApp {
       }
     ];
 
+    const menu = Menu.buildFromTemplate(template);
+    Menu.setApplicationMenu(menu);
+  }
+
+  private setupMenuBar(): void {
+    const template: Electron.MenuItemConstructorOptions[] = [
+      {
+        label: 'File',
+        submenu: [
+          {
+            label: 'Dashboard',
+            accelerator: 'CmdOrCtrl+D',
+            click: () => {
+              this.showMainWindow();
+            }
+          },
+          { type: 'separator' },
+          {
+            label: 'Quit',
+            accelerator: 'CmdOrCtrl+Q',
+            click: () => {
+              app.quit();
+            }
+          }
+        ]
+      },
+      // You can add more menus here if needed
+    ];
     const menu = Menu.buildFromTemplate(template);
     Menu.setApplicationMenu(menu);
   }
@@ -660,11 +839,32 @@ class ScreenshotApp {
       if (this.mainWindow) {
         this.mainWindow.show();
         this.mainWindow.focus();
+        // Hide pill when dashboard is shown
+        this.hidePill();
       }
     } else {
       this.createMainWindow();
       this.mainWindow!.show();
       this.mainWindow!.focus();
+      // Hide pill when dashboard is shown
+      this.hidePill();
+    }
+  }
+
+  private hidePill(): void {
+    if (this.pillWindow && !this.pillWindow.isDestroyed()) {
+      this.pillWindow.hide();
+    }
+  }
+
+  private showPill(): void {
+    if (
+      this.pillWindow &&
+      !this.pillWindow.isDestroyed() &&
+      (!this.mainWindow || this.mainWindow.isDestroyed() || !this.mainWindow.isVisible() || this.mainWindow.isMinimized()) &&
+      !this.modalOpen
+    ) {
+      this.pillWindow.show();
     }
   }
 
@@ -675,6 +875,9 @@ class ScreenshotApp {
 
   private cleanup(): void {
     globalShortcut.unregisterAll();
+    if (this.sqliteService) {
+      this.sqliteService.close();
+    }
     if (this.tray) {
       this.tray.destroy();
     }

@@ -1,6 +1,6 @@
 const { query } = require('../database/connection');
 const logger = require('../utils/logger');
-const { AUDIT_ACTIONS } = require('../../../shared/types/index');
+const { AUDIT_ACTIONS } = require('../../shared/types/index');
 
 // Audit log entry
 const auditLog = async (logData) => {

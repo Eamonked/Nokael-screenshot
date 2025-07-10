@@ -1,5 +1,5 @@
 const logger = require('../utils/logger');
-const { HTTP_STATUS, ERROR_TYPES } = require('../../../shared/types/index');
+const { HTTP_STATUS, ERROR_TYPES } = require('../../shared/types/index');
 
 // Custom error classes
 class ValidationError extends Error {

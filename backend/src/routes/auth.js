@@ -8,7 +8,7 @@ const {
   authenticate 
 } = require('../middleware/auth');
 const { asyncHandler } = require('../middleware/errorHandler');
-const { HTTP_STATUS } = require('../../../shared/types/index');
+const { HTTP_STATUS } = require('../../shared/types/index');
 
 const router = express.Router();
 

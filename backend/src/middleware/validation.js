@@ -1,6 +1,6 @@
 const { validationResult } = require('express-validator');
 const { ValidationError } = require('./errorHandler');
-const { HTTP_STATUS } = require('../../../shared/types/index');
+const { HTTP_STATUS } = require('../../shared/types/index');
 
 // Validation middleware
 const validateRequest = (req, res, next) => {

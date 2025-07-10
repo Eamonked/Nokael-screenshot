@@ -1,3 +1,4 @@
+require('dotenv').config();
 const { Pool } = require('pg');
 const logger = require('../utils/logger');
 
@@ -13,9 +14,18 @@ const dbConfig = {
   // Connection pool settings
   max: 20, // Maximum number of clients in the pool
   idleTimeoutMillis: 30000, // Close idle clients after 30 seconds
-  connectionTimeoutMillis: 2000, // Return an error after 2 seconds if connection could not be established
+  connectionTimeoutMillis: 10000, // Return an error after 10 seconds if connection could not be established
   maxUses: 7500, // Close (and replace) a connection after it has been used 7500 times
 };
+
+// Debug: Log the configuration being used
+console.log('Database Configuration:', {
+  host: dbConfig.host,
+  port: dbConfig.port,
+  database: dbConfig.database,
+  user: dbConfig.user,
+  ssl: dbConfig.ssl
+});
 
 // Create connection pool
 const pool = new Pool(dbConfig);

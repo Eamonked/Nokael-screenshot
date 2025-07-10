@@ -83,7 +83,7 @@
       let captureMenuInstance = null;
 
       pillContent.addEventListener('dblclick', () => {
-        window.electronAPI.openCaptureMenu();
+        window.electronAPI.hidePillAndOpenCaptureMenu();
       });
       pill.addEventListener('mousedown', (e) => {
         if (e.button === 0) {

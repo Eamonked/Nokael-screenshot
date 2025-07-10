@@ -55,12 +55,18 @@ const Login: React.FC = () => {
 
     if (!credentials.username.trim()) {
       errors.username = 'Username is required';
+    } else if (credentials.username.trim().length < 3) {
+      errors.username = 'Username must be at least 3 characters';
+    } else if (credentials.username.trim().length > 50) {
+      errors.username = 'Username must be 50 characters or less';
+    } else if (!/^[a-zA-Z0-9_-]+$/.test(credentials.username.trim())) {
+      errors.username = 'Username can only contain letters, numbers, underscores, and hyphens';
     }
 
     if (!credentials.password) {
       errors.password = 'Password is required';
-    } else if (credentials.password.length < 6) {
-      errors.password = 'Password must be at least 6 characters';
+    } else if (credentials.password.length < 8) {
+      errors.password = 'Password must be at least 8 characters';
     }
 
     setFormErrors(errors);

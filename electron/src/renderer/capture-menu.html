@@ -83,7 +83,15 @@
         window.close();
       }
 
-      document.getElementById('capture-menu-cancel-btn').onclick = closeMenu;
+      document.getElementById('capture-menu-cancel-btn').onclick = () => {
+        window.electronAPI.showPill();
+        closeMenu();
+      };
+      // Also call showPill on window close
+      window.onbeforeunload = () => {
+        window.electronAPI.showPill();
+      };
+
       document.getElementById('capture-menu-capture-btn').onclick = () => {
         const selected = document.querySelector('input[name="capture-type"]:checked').value;
         localStorage.setItem('lastCaptureMode', selected);
@@ -95,6 +103,24 @@
           window.close();
         }
       };
+
+      // Add after the Capture and Cancel buttons
+      const dashboardBtn = document.createElement('button');
+      dashboardBtn.textContent = 'Go to Dashboard';
+      dashboardBtn.style.marginTop = '16px';
+      dashboardBtn.style.width = '100%';
+      dashboardBtn.style.background = '#222';
+      dashboardBtn.style.color = '#fff';
+      dashboardBtn.style.border = 'none';
+      dashboardBtn.style.borderRadius = '4px';
+      dashboardBtn.style.padding = '10px';
+      dashboardBtn.style.fontSize = '16px';
+      dashboardBtn.style.cursor = 'pointer';
+      dashboardBtn.onclick = () => {
+        window.electronAPI.openDashboard();
+        window.close();
+      };
+      modal.appendChild(dashboardBtn);
     });
   </script>
 </body>

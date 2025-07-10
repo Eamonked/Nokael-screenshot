@@ -12,7 +12,7 @@ const {
   HTTP_STATUS, 
   FILE_TYPES,
   MAX_FILE_SIZE 
-} = require('../../../shared/types/index');
+} = require('../../shared/types/index');
 
 const router = express.Router();
 
